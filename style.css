@@ -1,0 +1,46 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f3f4f6;
+}
+.card-container {
+    transition: transform 0.2s ease-in-out;
+}
+.card-container:active {
+    transform: scale(0.98);
+}
+#add-button {
+    transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out;
+}
+#add-button:hover {
+    transform: scale(1.05);
+    background-color: #43a047; /* Tamnija zelena */
+}
+.type-button {
+    transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+}
+.type-button:hover {
+    background-color: #e5e7eb;
+}
+.type-button.selected {
+    background-color: #d1fae5; /* Svijetlozelena */
+    border-color: #10b981;
+}
+.input-field, .modal-footer button {
+    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+}
+.input-field:focus {
+    outline: none;
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.5);
+}
+.modal-footer button:hover {
+    opacity: 0.8;
+}
+.delete-button {
+    transition: color 0.2s ease-in-out, transform 0.2s ease-in-out;
+}
+.delete-button:hover {
+    color: #ef4444; /* Crvena boja */
+    transform: scale(1.1);
+}
