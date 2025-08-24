@@ -315,10 +315,15 @@ saveButton.addEventListener('click', async () => {
         medicineNameInput.value = '';
         medicineTimeInput.value = '';
         addModal.style.display = 'none';
+
+        // Pokušaj zatvoriti cijeli prozor/tab
+        window.close();
+
     } catch (e) {
         showCustomModal("Greška prilikom spremanja lijeka: " + e.message);
     }
 });
+
 
 // Registracija Service Worker-a
 if ('serviceWorker' in navigator) {
