@@ -1,46 +1,71 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* Resetiranje i osnovna stilizacija */
 body {
     font-family: 'Inter', sans-serif;
-    background-color: #f3f4f6;
+    transition: background-color 0.5s, color 0.5s;
 }
+
+/* Osnovna tamna tema */
+body.dark {
+    background-color: #111827;
+    color: #e5e7eb;
+}
+
+/* Card animacije */
 .card-container {
-    transition: transform 0.2s ease-in-out;
+    opacity: 0;
+    transform: translateY(20px);
+    animation: fade-in 0.5s forwards;
+    transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
 }
-.card-container:active {
-    transform: scale(0.98);
+
+.card-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
-#add-button {
-    transition: transform 0.2s ease-in-out, background-color 0.2s ease-in-out;
+
+/* Animacija za pojavljivanje elemenata */
+@keyframes fade-in {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
-#add-button:hover {
-    transform: scale(1.05);
-    background-color: #43a047; /* Tamnija zelena */
+
+/* Stanje kada je lijek uzet */
+.card-container.taken {
+    background-color: #d1d5db; /* Svjetlo siva u svijetlom modu */
+    opacity: 0.6;
 }
-.type-button {
-    transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+
+body.dark .card-container.taken {
+    background-color: #374151; /* Tamnija siva u tamnom modu */
 }
-.type-button:hover {
-    background-color: #e5e7eb;
-}
+
+/* Stil za gumbe za vrstu lijeka */
 .type-button.selected {
-    background-color: #d1fae5; /* Svijetlozelena */
-    border-color: #10b981;
-}
-.input-field, .modal-footer button {
-    transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
-}
-.input-field:focus {
-    outline: none;
-    border-color: #2563eb;
-    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.5);
-}
-.modal-footer button:hover {
-    opacity: 0.8;
-}
-.delete-button {
-    transition: color 0.2s ease-in-out, transform 0.2s ease-in-out;
-}
-.delete-button:hover {
-    color: #ef4444; /* Crvena boja */
+    background-color: #4f46e5;
+    color: white;
     transform: scale(1.1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Modal animacija */
+#add-modal.open {
+    opacity: 1;
+}
+
+#add-modal.open > div {
+    transform: scale(1);
+    opacity: 1;
+}
+
+/* Sakrivanje ikone za tamni mod */
+#dark-mode-toggle .fa-sun {
+    display: none;
+}
+body.dark #dark-mode-toggle .fa-sun {
+    display: inline;
+}
+body.dark #dark-mode-toggle .fa-moon {
+    display: none;
 }
