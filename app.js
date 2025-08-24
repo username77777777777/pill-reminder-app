@@ -13,7 +13,7 @@ const db = getFirestore(app);
 // Definiranje tipova za lijekove
 const medicineTypes = {
     'tableta': '💊',
-    'sirup': '�',
+    'sirup': '🧴',
     'sprej': '👃',
     'injekcija': '💉'
 };
@@ -82,6 +82,7 @@ function requestNotificationPermission() {
             if (permission === 'granted') {
                 console.log('Dopuštenje za obavijesti odobreno.');
             } else {
+                showCustomModal('Obavijesti su potrebne za rad podsjetnika. Molimo omogućite obavijesti u postavkama preglednika.');
                 console.log('Dopuštenje za obavijesti odbijeno.');
             }
         });
