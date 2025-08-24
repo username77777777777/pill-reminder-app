@@ -13,7 +13,7 @@ const db = getFirestore(app);
 // Definiranje tipova za lijekove
 const medicineTypes = {
     'tableta': '💊',
-    'sirup': '🧴',
+    'sirup': '�',
     'sprej': '👃',
     'injekcija': '💉'
 };
@@ -43,6 +43,8 @@ const customModalCancel = document.getElementById('custom-modal-cancel');
 
 let selectedType = 'tableta';
 let isLogin = true;
+// Pomoćni objekt za praćenje poslanih obavijesti kako se ne bi ponavljale
+let notifiedTimes = {};
 
 // Custom modal funkcije
 function showCustomModal(message, isConfirm = false) {
@@ -71,6 +73,82 @@ function showCustomModal(message, isConfirm = false) {
     });
 }
 
+/**
+ * Traži dopuštenje za prikaz obavijesti.
+ */
+function requestNotificationPermission() {
+    if ('Notification' in window) {
+        Notification.requestPermission().then(permission => {
+            if (permission === 'granted') {
+                console.log('Dopuštenje za obavijesti odobreno.');
+            } else {
+                console.log('Dopuštenje za obavijesti odbijeno.');
+            }
+        });
+    }
+}
+
+/**
+ * Prikazuje obavijest korisniku.
+ * @param {string} title Naslov obavijesti.
+ * @param {string} body Tekst obavijesti.
+ */
+function showNotification(title, body) {
+    if (Notification.permission === 'granted') {
+        const options = {
+            body: body,
+            icon: '/images/icons/icon-192x192.png', // Koristi ikonu aplikacije
+        };
+        new Notification(title, options);
+    }
+}
+
+/**
+ * Provjerava treba li poslati obavijest za određeni lijek.
+ * @param {Array} medicines Lista lijekova iz baze.
+ */
+function checkForNotifications(medicines) {
+    const now = new Date();
+    const currentHour = now.getHours().toString().padStart(2, '0');
+    const currentMinute = now.getMinutes().toString().padStart(2, '0');
+    const currentTime = `${currentHour}:${currentMinute}`;
+    const today = now.toDateString();
+
+    // Resetiraj listu poslanih obavijesti na početku svakog novog dana
+    if (!notifiedTimes[today]) {
+        notifiedTimes = { [today]: {} };
+    }
+
+    medicines.forEach(medicine => {
+        // Provjeri je li vrijeme za lijek
+        if (medicine.time === currentTime) {
+            // Provjeri je li obavijest već poslana za ovaj lijek danas
+            if (!notifiedTimes[today][medicine.id]) {
+                showNotification(
+                    'Vrijeme za lijek!',
+                    `Vrijeme je za uzimanje ${medicine.name} (${medicine.time}).`
+                );
+                // Označi obavijest kao poslanu za danas
+                notifiedTimes[today][medicine.id] = true;
+            }
+        }
+    });
+}
+
+// Postavi provjeru obavijesti da se pokreće svaku minutu
+setInterval(() => {
+    // Samo pokreni provjeru ako je korisnik prijavljen i lista lijekova nije prazna
+    if (auth.currentUser && medicineList.children.length > 0) {
+        // Dohvati najnoviju listu lijekova iz DOM-a za provjeru
+        const currentMedicines = Array.from(medicineList.children).map(card => ({
+            id: card.dataset.id,
+            name: card.querySelector('h3').textContent,
+            time: card.querySelector('p').textContent
+        }));
+        checkForNotifications(currentMedicines);
+    }
+}, 60000); // 60000 milisekundi = 1 minuta
+
 // Upravljanje autentikacijom i prikazom UI-ja
 onAuthStateChanged(auth, (user) => {
     if (user) {
@@ -78,6 +156,7 @@ onAuthStateChanged(auth, (user) => {
         authContainer.style.display = 'none';
         appContainer.style.display = 'flex';
         logoutButton.style.display = 'block';
+        requestNotificationPermission(); // Traži dopuštenje za obavijesti
         // Postavljanje listener-a na Firestore kolekciju
         const q = query(collection(db, "medicines"), where("userId", "==", user.uid));
         onSnapshot(q, (querySnapshot) => {
