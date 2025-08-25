@@ -83,8 +83,8 @@ const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
 const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-// React App
-function App() {
+// Glavna React komponenta
+export default function App() {
     const [db, setDb] = useState(null);
     const [auth, setAuth] = useState(null);
     const [user, setUser] = useState(null);
@@ -211,7 +211,6 @@ function App() {
             medicines.forEach(medicine => {
                 const startDateObj = medicine.startDate ? new Date(medicine.startDate) : null;
                 const endDateObj = medicine.endDate ? new Date(medicine.endDate) : null;
-
                 if ((!startDateObj || now >= startDateObj) && (!endDateObj || now <= endDateObj)) {
                     if (medicine.times.includes(currentTime) && !medicine.isTaken) {
                         setCurrentPillReminder(medicine);
@@ -253,7 +252,6 @@ function App() {
             showCustomModal(lang.errorNameTimes);
             return;
         }
-
         try {
             await addDoc(collection(db, `artifacts/${appId}/users/${user.uid}/medicines`), {
                 name,
@@ -293,165 +291,206 @@ function App() {
         }
     };
 
-    // Loading state
-    if (!isAuthReady) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 transition-colors duration-500">
-                <div className="text-gray-900 dark:text-white">Učitavanje...</div>
-            </div>
-        );
-    }
-    
+    const handleAuthSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            if (isLogin) {
+                await signInWithEmailAndPassword(auth, email, password);
+            } else {
+                await createUserWithEmailAndPassword(auth, email, password);
+            }
+        } catch (error) {
+            const errorMessage = lang.errorFirebase[error.code] || lang.errorFirebase['default'];
+            showCustomModal(errorMessage);
+        }
+    };
+
     // UI za prijavu/registraciju
-    if (!user) {
+    if (!isAuthReady || !user) {
         return (
-            <div className="min-h-screen flex items-center justify-center p-4 bg-gray-100 dark:bg-gray-900 transition-colors duration-500">
+            <div className="min-h-screen flex items-center justify-center p-4 bg-gray-100 dark:bg-gray-900 transition-colors duration-500 font-sans">
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-sm transform transition duration-500 hover:scale-105">
-                    <h2 className="text-2xl font-bold text-center mb-6 text-gray-900 dark:text-white">{isLogin ? lang.authTitleLogin : lang.authTitleRegister}</h2>
-                    <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); /* implementacija prijave/registracije */ }}>
-                        <div>
-                            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">E-mail</label>
+                    <h2 className="text-3xl font-bold text-center mb-6 text-gray-900 dark:text-white">
+                        {isLogin ? lang.authTitleLogin : lang.authTitleRegister}
+                    </h2>
+                    <form onSubmit={handleAuthSubmit}>
+                        <div className="mb-4">
+                            <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Email</label>
                             <input
                                 type="email"
-                                className="w-full mt-1 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                placeholder="primjer@email.com"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                                required
                             />
                         </div>
-                        <div>
-                            <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Lozinka</label>
+                        <div className="mb-6">
+                            <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">Lozinka</label>
                             <input
                                 type="password"
-                                className="w-full mt-1 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                placeholder="●●●●●●"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
+                                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                                required
                             />
                         </div>
-                        <button
-                            type="submit"
-                            className="w-full py-3 bg-indigo-600 text-white font-bold rounded-xl shadow-lg hover:bg-indigo-700 transition-colors duration-200"
-                        >
+                        <button type="submit" className="w-full px-4 py-3 bg-indigo-600 text-white rounded-xl font-semibold shadow-md hover:bg-indigo-700 transition-colors transform hover:scale-105">
                             {isLogin ? lang.authSubmitLogin : lang.authSubmitRegister}
                         </button>
                     </form>
-                    <button
-                        className="w-full mt-4 py-3 text-sm font-semibold text-indigo-600 dark:text-indigo-400"
-                        onClick={() => setIsLogin(!isLogin)}
-                    >
-                        {isLogin ? lang.authToggleLogin : lang.authToggleRegister}
-                    </button>
+                    <div className="mt-6 text-center">
+                        <button onClick={() => setIsLogin(!isLogin)} className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">
+                            {isLogin ? lang.authToggleLogin : lang.authToggleRegister}
+                        </button>
+                    </div>
                 </div>
             </div>
         );
     }
 
+    // Glavni UI aplikacije
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-500 font-sans p-4 sm:p-6 lg:p-8">
-            <div className="max-w-4xl mx-auto">
-                {/* Zaglavlje */}
-                <header className="flex justify-between items-center mb-6">
-                    <h1 className="text-3xl font-extrabold text-gray-900 dark:text-white" id="main-title">{lang.mainTitle}</h1>
-                    <div className="flex items-center space-x-2 sm:space-x-4">
-                        <span className="text-gray-600 dark:text-gray-400 text-sm">{lang.userIdLabel}: {user.uid}</span>
-                        <select className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-xl py-2 px-3 border border-gray-300 dark:border-gray-600" onChange={handleLanguageChange} value={currentLanguage}>
-                            <option value="hr">HR</option>
-                            <option value="en">EN</option>
-                        </select>
-                        <button onClick={toggleDarkMode} className="text-gray-600 dark:text-gray-400 focus:outline-none">
-                            <i className="fas fa-sun text-2xl dark:hidden"></i>
-                            <i className="fas fa-moon text-2xl hidden dark:inline"></i>
-                        </button>
-                        <button onClick={logout} className="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors">
-                            {currentLanguage === 'hr' ? 'Odjava' : 'Log Out'}
-                        </button>
-                    </div>
-                </header>
-
-                {/* Gumb za dodavanje */}
-                <div className="text-center mb-8">
-                    <button id="add-button" className="w-full sm:w-auto px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition-colors duration-200" onClick={() => setIsAddModalOpen(true)}>
-                        <i className="fas fa-plus mr-2"></i>
-                        {currentLanguage === 'hr' ? 'Dodaj novi lijek' : 'Add New Medicine'}
+        <div className="bg-gray-100 dark:bg-gray-900 transition-colors duration-500 min-h-screen">
+            <header className="flex justify-between items-center p-4 shadow-md bg-white dark:bg-gray-800 rounded-b-2xl">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white" id="main-title">{lang.mainTitle}</h1>
+                <div className="flex space-x-2">
+                    <button onClick={toggleDarkMode} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                        <svg className="w-6 h-6 text-gray-800 dark:text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                        </svg>
+                    </button>
+                    <select value={currentLanguage} onChange={handleLanguageChange} className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg p-2">
+                        <option value="hr">HR</option>
+                        <option value="en">EN</option>
+                    </select>
+                    <button onClick={logout} className="px-4 py-2 bg-red-600 text-white rounded-xl font-semibold hover:bg-red-700 transition-colors">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path d="M17.982 18.725A7.488 7.488 0 0012 10.5a7.487 7.487 0 00-5.982 2.225M12 12c.966 0 1.902-.253 2.723-.738m2.593-1.554a7.487 7.487 0 00-5.982-2.225A7.488 7.488 0 0012 18.5a7.487 7.487 0 005.982-2.225m-2.593 1.554a7.487 7.487 0 00-5.982-2.225c.966 0 1.902-.253 2.723-.738a7.487 7.487 0 00-5.982-2.225M17.982 18.725A7.488 7.488 0 0012 10.5a7.487 7.487 0 00-5.982 2.225" />
+                        </svg>
                     </button>
                 </div>
-
-                {/* Lista lijekova */}
-                <div id="medicine-list" className="space-y-4">
-                    {medicines.length === 0 ? (
-                        <p id="no-medicines" className="text-center text-gray-500 dark:text-gray-400 mt-12">{lang.noMedicinesText}</p>
-                    ) : (
-                        medicines.map((medicine, index) => (
-                            <div key={index} className={`card-container bg-white dark:bg-gray-800 rounded-xl shadow-md p-4 flex items-center justify-between space-x-4 transition-transform duration-200 hover:scale-[1.01] ${medicine.isTaken ? 'bg-gray-200 dark:bg-gray-700 opacity-60' : ''}`}>
-                                <div className="flex items-center space-x-4">
-                                    <span className="text-4xl select-none">{medicineTypes[medicine.type] || '❓'}</span>
-                                    <div className="flex-1">
-                                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{medicine.name}</h3>
-                                        <p className="text-gray-500 text-sm mt-1">{medicine.times.join(', ')}</p>
+            </header>
+            <main className="p-4">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Podsjetnici</h2>
+                    <button onClick={() => setIsAddModalOpen(true)} className="p-3 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition-colors">
+                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                    </button>
+                </div>
+                {medicines.length === 0 ? (
+                    <p className="text-center text-gray-500 dark:text-gray-400 mt-10" id="no-medicines-text">{lang.noMedicinesText}</p>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" id="medicines-list">
+                        {medicines.map(medicine => (
+                            <div key={medicine.id} className={`card-container bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 flex flex-col justify-between ${medicine.isTaken ? 'opacity-60' : ''}`}>
+                                <div>
+                                    <div className="flex items-center mb-2">
+                                        <span className="text-3xl mr-3">{medicineTypes[medicine.type] || '💊'}</span>
+                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{medicine.name}</h3>
                                     </div>
+                                    <div className="flex flex-wrap gap-2 mb-4">
+                                        {medicine.times.map((time, index) => (
+                                            <span key={index} className="bg-indigo-100 text-indigo-800 text-sm font-semibold px-2.5 py-0.5 rounded-full dark:bg-indigo-900 dark:text-indigo-200">
+                                                {time}
+                                            </span>
+                                        ))}
+                                    </div>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        {`Od: ${medicine.startDate || 'Nema datuma'}`}
+                                    </p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                                        {`Do: ${medicine.endDate || 'Nema datuma'}`}
+                                    </p>
                                 </div>
-                                <div className="flex space-x-2 items-center">
-                                    <button className="text-green-500 focus:outline-none" onClick={() => handleTake(medicine.id)} aria-label="Uzeo sam lijek">
-                                        <i className="fas fa-check-circle text-2xl"></i>
-                                    </button>
-                                    <button className="text-gray-400 hover:text-red-500 focus:outline-none" onClick={() => handleDelete(medicine.id)} aria-label="Obriši lijek">
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                <div className="flex justify-end space-x-2 mt-4">
+                                    <button onClick={() => handleDelete(medicine.id)} className="p-2 bg-red-100 text-red-600 rounded-full hover:bg-red-200 transition-colors">
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.035 21H7.965a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                         </svg>
                                     </button>
+                                    {/* Uzeo/la lijek */}
+                                    {!medicine.isTaken && (
+                                        <button onClick={() => handleTake(medicine.id)} className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200 transition-colors">
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
-                        ))
-                    )}
-                </div>
-            </div>
+                        ))}
+                    </div>
+                )}
+            </main>
 
-            {/* Modal za dodavanje lijeka */}
+            {/* Modal za dodavanje/uređivanje lijeka */}
             {isAddModalOpen && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-sm">
-                        <h2 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">{lang.modalTitle}</h2>
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300" htmlFor="medicine-name">{lang.labelName}</label>
-                                <input id="medicine-name" type="text" className="w-full mt-1 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" value={name} onChange={(e) => setName(e.target.value)} />
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-md transform transition-transform duration-300 scale-100">
+                        <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">{lang.modalTitle}</h2>
+                        <form id="medicine-form">
+                            <div className="mb-4">
+                                <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">{lang.labelName}</label>
+                                <input
+                                    type="text"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    placeholder="Npr. Andol"
+                                    required
+                                />
                             </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300" htmlFor="medicine-times">{lang.labelTimes}</label>
-                                <input id="medicine-times" type="text" className="w-full mt-1 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" placeholder="09:00, 14:30" value={times} onChange={(e) => setTimes(e.target.value)} />
+                            <div className="mb-4">
+                                <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">{lang.labelTimes}</label>
+                                <input
+                                    type="text"
+                                    value={times}
+                                    onChange={(e) => setTimes(e.target.value)}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                                    placeholder="Npr. 08:00, 14:30, 20:00"
+                                />
                             </div>
-                            <div className="flex space-x-4">
-                                <div className="flex-1">
-                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300" htmlFor="start-date">{lang.labelStartDate}</label>
-                                    <input id="start-date" type="date" className="w-full mt-1 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-                                </div>
-                                <div className="flex-1">
-                                    <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300" htmlFor="end-date">{lang.labelEndDate}</label>
-                                    <input id="end-date" type="date" className="w-full mt-1 p-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-                                </div>
+                            <div className="mb-4">
+                                <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">{lang.labelStartDate}</label>
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                                />
                             </div>
-                            <div>
-                                <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">{lang.labelType}</label>
-                                <div className="flex justify-center space-x-2">
-                                    {Object.entries(medicineTypes).map(([type, icon]) => (
-                                        <button
-                                            key={type}
-                                            className={`type-button flex flex-col items-center justify-center p-2 rounded-xl border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${selectedType === type ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-white'}`}
-                                            onClick={() => setSelectedType(type)}
-                                            data-type={type}
-                                        >
-                                            <span className="text-2xl">{icon}</span>
-                                            <span className="text-xs mt-1 capitalize">{type}</span>
-                                        </button>
+                            <div className="mb-4">
+                                <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">{lang.labelEndDate}</label>
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                                />
+                            </div>
+                            <div className="mb-6">
+                                <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2">{lang.labelType}</label>
+                                <select
+                                    value={selectedType}
+                                    onChange={(e) => setSelectedType(e.target.value)}
+                                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white"
+                                >
+                                    {Object.keys(medicineTypes).map(type => (
+                                        <option key={type} value={type}>{type}</option>
                                     ))}
-                                </div>
+                                </select>
                             </div>
-                        </div>
-                        <div className="flex justify-end space-x-2 mt-6">
-                            <button className="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white rounded-xl font-semibold hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors" onClick={() => setIsAddModalOpen(false)}>{lang.buttonCancel}</button>
-                            <button className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors" onClick={handleSave}>{lang.buttonSave}</button>
-                        </div>
+                            <div className="flex justify-end space-x-2 mt-4">
+                                <button type="button" onClick={() => setIsAddModalOpen(false)} className="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg font-semibold hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors">
+                                    {lang.buttonCancel}
+                                </button>
+                                <button type="button" onClick={handleSave} className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors">
+                                    {lang.buttonSave}
+                                </button>
+                            </div>
+                        </form>
                     </div>
                 </div>
             )}
@@ -463,9 +502,13 @@ function App() {
                         <p className="text-gray-800 dark:text-gray-200 mb-4">{customModalMessage}</p>
                         <div className="flex justify-center space-x-4">
                             {isConfirmModal && (
-                                <button className="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white rounded-xl font-semibold hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors" onClick={() => confirmAction(false)}>{lang.cancel}</button>
+                                <button onClick={() => confirmAction(false)} className="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg font-semibold hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors">
+                                    {lang.cancel}
+                                </button>
                             )}
-                            <button className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors" onClick={() => confirmAction(true)}>{lang.ok}</button>
+                            <button onClick={() => confirmAction(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors">
+                                {lang.ok}
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -478,7 +521,7 @@ function App() {
                         <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">{lang.modalPillTitle}</h2>
                         <p className="text-gray-800 dark:text-gray-200 mb-4">{lang.modalPillMessage} <span className="font-semibold text-indigo-600">{currentPillReminder.name}</span></p>
                         <div className="flex justify-center">
-                            <button className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors" onClick={() => handleTake(currentPillReminder.id)}>
+                            <button onClick={() => handleTake(currentPillReminder.id)} className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors">
                                 {lang.modalPillButton}
                             </button>
                         </div>
@@ -489,4 +532,3 @@ function App() {
     );
 }
 
-export default App;
