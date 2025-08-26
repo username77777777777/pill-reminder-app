@@ -1,43 +1,20 @@
 import { useState, useEffect } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithCustomToken, onAuthStateChanged, signOut, signInAnonymously } from 'firebase/auth';
-import { getFirestore, doc, deleteDoc, setDoc, onSnapshot, collection, query } from 'firebase/firestore';
+import { getFirestore, doc, deleteDoc, setDoc, onSnapshot, collection, query, where, addDoc } from 'firebase/firestore';
 import { AlertCircle, PlusCircle, Trash2, Edit, LogOut, Sun, Moon, Calendar, Clock, Pill, Globe } from 'lucide-react';
-
-// Ažurirani kod koristi standardne HTML elemente s Tailwind CSS-om umjesto shadcn komponenti
-// kako bi se izbjegle pogreške pri kompilaciji uzrokovane nedostajućim modulima.
 
 // Ugrađena Tailwind CSS skripta za stiliziranje
 // Iako je ovo React komponenta, Tailwind skripta je dodana radi lakšeg prikaza u Canvas okruženju.
 <script src="https://cdn.tailwindcss.com"></script>
 
-// Firebase konfiguracija (preuzeto iz firebase-config.js)
-const firebaseConfig = {
-    apiKey: "AIzaSyATA5Nzgo7cWQrpuUmVb3dKtpuax0I8u78",
-    authDomain: "pillreminderapp-5001d.firebaseapp.com",
-    projectId: "pillreminderapp-5001d",
-    storageBucket: "pillreminderapp-5001d.firebasestorage.app",
-    messagingSenderId: "284598567632",
-    appId: "1:284598567632:web:93c30c46f208293e6dd4d5"
-};
+// Firebase konfiguracija
+// Koristi globalne varijable koje osigurava Canvas okruženje
+const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
-// Jezično neovisni ključevi za vrste lijekova
-const medicineTypeKeys = {
-    'tableta': 'tablet',
-    'sirup': 'syrup',
-    'sprej': 'spray',
-    'injekcija': 'injection'
-};
-
-// Mapa emojija koristeći jezično neovisne ključeve
-const medicineTypes = {
-    'tablet': '💊',
-    'syrup': '🧴',
-    'spray': '👃',
-    'injection': '💉'
-};
-
-// Objekti za prijevod, sada s prijevodima za vrste lijekova
+// Objekti za prijevod
 const translations = {
     hr: {
         mainTitle: 'Moji lijekovi',
@@ -48,8 +25,7 @@ const translations = {
         authToggleRegister: 'Već imate račun? Prijavite se',
         authSubmitLogin: 'Prijavi se',
         authSubmitRegister: 'Registriraj se',
-        modalTitleAdd: 'Dodaj novi lijek',
-        modalTitleEdit: 'Uredi lijek',
+        modalTitle: 'Dodaj novi lijek',
         labelName: 'Ime lijeka',
         labelTimes: 'Vrijeme (razdvojeno zarezom)',
         labelStartDate: 'Datum početka',
@@ -57,80 +33,111 @@ const translations = {
         labelType: 'Vrsta lijeka',
         buttonCancel: 'Odustani',
         buttonSave: 'Spremi',
-        deleteConfirmation: 'Jeste li sigurni da želite obrisati ovaj podsjetnik?',
+        buttonEdit: 'Uredi',
+        buttonAdd: 'Dodaj novi lijek',
+        errorSave: 'Greška pri spremanju lijeka:',
+        errorDelete: 'Greška pri brisanju lijeka:',
+        errorFetch: 'Greška pri dohvaćanju lijekova:',
+        errorAuth: 'Greška pri autentifikaciji:',
+        successLogin: 'Uspješna prijava!',
+        successLogout: 'Uspješno ste odjavljeni!',
+        loginPrompt: 'Aplikacija je povezana s internom bazom podataka i ne traži lozinku.',
+        anonymousLogin: 'Anonimna prijava',
+        logout: 'Odjavi se',
+        modalPillTitle: 'Podsjetnik na lijek',
+        modalPillMessage: 'Vrijeme je za uzimanje lijeka',
+        modalPillButton: 'Uzeo/la sam',
+        confirmTitle: 'Potvrda',
+        confirmMessage: 'Jeste li sigurni?',
         yes: 'Da',
         no: 'Ne',
         ok: 'OK',
-        errorSave: 'Greška pri spremanju podsjetnika: ',
-        errorDelete: 'Greška pri brisanju podsjetnika: ',
-        modalPillTitle: 'Podsjetnik!',
-        modalPillMessage: 'Vrijeme je za uzimanje:',
-        modalPillButton: 'Uzeo/la sam',
-        language: 'Jezik',
-        theme: 'Tema',
-        user: 'Korisnik',
-        logout: 'Odjavi se',
-        // Novi prijevodi za vrste lijekova
-        medicineTypeTablet: 'tableta',
-        medicineTypeSyrup: 'sirup',
-        medicineTypeSpray: 'sprej',
-        medicineTypeInjection: 'injekcija',
+        pillTaken: 'Lijek uzet',
+        pillAlreadyTaken: 'Lijek je već uzet',
+        editPill: 'Uredi lijek',
+        deletePill: 'Izbriši lijek',
+        pillType: {
+            'tableta': '💊 Tableta',
+            'sirup': '🧴 Sirup',
+            'sprej': '👃 Sprej',
+            'injekcija': '💉 Injekcija'
+        }
     },
     en: {
         mainTitle: 'My Medicines',
         noMedicinesText: 'No medicines added yet. Add a new reminder!',
-        authTitleLogin: 'Log In',
+        authTitleLogin: 'Login',
         authTitleRegister: 'Register',
         authToggleLogin: 'Don\'t have an account? Register',
-        authToggleRegister: 'Already have an account? Log In',
-        authSubmitLogin: 'Log In',
+        authToggleRegister: 'Already have an account? Login',
+        authSubmitLogin: 'Login',
         authSubmitRegister: 'Register',
-        modalTitleAdd: 'Add New Medicine',
-        modalTitleEdit: 'Edit Medicine',
+        modalTitle: 'Add New Medicine',
         labelName: 'Medicine Name',
-        labelTimes: 'Time (comma-separated)',
+        labelTimes: 'Times (comma-separated)',
         labelStartDate: 'Start Date',
         labelEndDate: 'End Date',
         labelType: 'Medicine Type',
         buttonCancel: 'Cancel',
         buttonSave: 'Save',
-        deleteConfirmation: 'Are you sure you want to delete this reminder?',
+        buttonEdit: 'Edit',
+        buttonAdd: 'Add New Medicine',
+        errorSave: 'Error saving medicine:',
+        errorDelete: 'Error deleting medicine:',
+        errorFetch: 'Error fetching medicines:',
+        errorAuth: 'Authentication error:',
+        successLogin: 'Login successful!',
+        successLogout: 'You have been successfully logged out!',
+        loginPrompt: 'The application is connected to an internal database and does not require a password.',
+        anonymousLogin: 'Anonymous Login',
+        logout: 'Logout',
+        modalPillTitle: 'Pill Reminder',
+        modalPillMessage: 'It\'s time to take your medicine',
+        modalPillButton: 'I\'ve taken it',
+        confirmTitle: 'Confirmation',
+        confirmMessage: 'Are you sure?',
         yes: 'Yes',
         no: 'No',
         ok: 'OK',
-        errorSave: 'Error saving reminder: ',
-        errorDelete: 'Error deleting reminder: ',
-        modalPillTitle: 'Reminder!',
-        modalPillMessage: 'It\'s time to take:',
-        modalPillButton: 'I have taken it',
-        language: 'Language',
-        theme: 'Theme',
-        user: 'User',
-        logout: 'Log out',
-        // Novi prijevodi za vrste lijekova
-        medicineTypeTablet: 'tablet',
-        medicineTypeSyrup: 'syrup',
-        medicineTypeSpray: 'spray',
-        medicineTypeInjection: 'injection',
+        pillTaken: 'Pill taken',
+        pillAlreadyTaken: 'Pill already taken',
+        editPill: 'Edit Pill',
+        deletePill: 'Delete Pill',
+        pillType: {
+            'tableta': '💊 Tablet',
+            'sirup': '🧴 Syrup',
+            'sprej': '👃 Spray',
+            'injekcija': '💉 Injection'
+        }
     }
 };
 
-// Komponenta za modalne poruke
-const CustomModal = ({ message, onConfirm, onCancel, showConfirmCancel }) => {
-    if (!message) return null;
+// Funkcija za provjeru i pretvorbu datuma
+const isValidDate = (dateString) => {
+    const regEx = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateString.match(regEx)) return false;  // Nepravilan format
+    const d = new Date(dateString);
+    const dNum = d.getTime();
+    if (!dNum && dNum !== 0) return false; // Nije validan datum
+    return d.toISOString().slice(0, 10) === dateString;
+};
 
+// Funkcija za prikaz prilagođenog moda
+const CustomModal = ({ message, onConfirm, onCancel, showConfirmCancel }) => {
+    const lang = translations[localStorage.getItem('language') || 'hr'];
+    if (!message) return null;
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 transition-opacity duration-300 animate-fade-in">
             <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-xs text-center">
                 <p className="text-gray-800 dark:text-gray-200 mb-4">{message}</p>
                 <div className="flex justify-center space-x-4">
                     {showConfirmCancel ? (
                         <>
-                            <button className="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg font-semibold hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors" onClick={onCancel}>{translations.hr.no}</button>
-                            <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors" onClick={onConfirm}>{translations.hr.yes}</button>
+                            <button className="px-4 py-2 bg-red-600 text-white rounded-lg font-semibold hover:bg-red-700 transition-colors" onClick={onCancel}>{lang.no}</button>
+                            <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors" onClick={onConfirm}>{lang.yes}</button>
                         </>
                     ) : (
-                        <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors" onClick={onConfirm}>{translations.hr.ok}</button>
+                        <button className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors" onClick={onConfirm}>{lang.ok}</button>
                     )}
                 </div>
             </div>
@@ -138,336 +145,527 @@ const CustomModal = ({ message, onConfirm, onCancel, showConfirmCancel }) => {
     );
 };
 
-// Glavna App komponenta
 const App = () => {
-    // --- State varijable ---
     const [db, setDb] = useState(null);
     const [auth, setAuth] = useState(null);
-    const [userId, setUserId] = useState(null);
     const [isAuthReady, setIsAuthReady] = useState(false);
+    const [userId, setUserId] = useState(null);
     const [medicines, setMedicines] = useState([]);
-    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-    const [editMedicine, setEditMedicine] = useState(null);
-    const [currentLanguage, setCurrentLanguage] = useState(localStorage.getItem('language') || 'hr');
-    const [isDarkMode, setIsDarkMode] = useState(localStorage.theme === 'dark');
-    const [showCustomModal, setShowCustomModal] = useState(false);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingMedicine, setEditingMedicine] = useState(null);
+    const [isPillReminderModalOpen, setIsPillReminderModalOpen] = useState(false);
+    const [currentPillReminder, setCurrentPillReminder] = useState(null);
     const [customModalMessage, setCustomModalMessage] = useState('');
-    const [customModalAction, setCustomModalAction] = useState(null);
     const [showConfirmCancel, setShowConfirmCancel] = useState(false);
-    const lang = translations[currentLanguage] || translations.hr;
+    const [confirmAction, setConfirmAction] = useState(() => () => {});
+    const [currentLanguage, setCurrentLanguage] = useState(localStorage.getItem('language') || 'hr');
+    const lang = translations[currentLanguage];
 
-    // --- Inicijalizacija Firebasea i autentifikacija ---
+    const medicineTypes = {
+        'tableta': '💊',
+        'sirup': '🧴',
+        'sprej': '👃',
+        'injekcija': '💉'
+    };
+    
+    // Inicijalizacija Firebase-a i autentifikacija
     useEffect(() => {
-        const app = initializeApp(firebaseConfig);
-        const authInstance = getAuth(app);
-        const dbInstance = getFirestore(app);
-        setDb(dbInstance);
-        setAuth(authInstance);
+        try {
+            const app = initializeApp(firebaseConfig);
+            const firebaseAuth = getAuth(app);
+            const firestore = getFirestore(app);
+            setDb(firestore);
+            setAuth(firebaseAuth);
 
-        const unsubscribe = onAuthStateChanged(authInstance, async (user) => {
-            if (user) {
-                setUserId(user.uid);
-            } else {
-                try {
-                    // Ako token nije definiran, prijavite se anonimno
-                    if (typeof __initial_auth_token !== 'undefined') {
-                        await signInWithCustomToken(authInstance, __initial_auth_token);
-                    } else {
-                        await signInAnonymously(authInstance);
+            const unsubscribe = onAuthStateChanged(firebaseAuth, async (user) => {
+                if (user) {
+                    setUserId(user.uid);
+                } else {
+                    try {
+                        // Automatska anonimna prijava ako nema tokena
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(firebaseAuth, initialAuthToken);
+                        } else {
+                            await signInAnonymously(firebaseAuth);
+                        }
+                    } catch (error) {
+                        console.error('Anonimna prijava nije uspjela:', error);
                     }
-                } catch (error) {
-                    console.error("Greška pri autentifikaciji:", error);
                 }
-            }
-            setIsAuthReady(true);
-        });
+                setIsAuthReady(true);
+            });
 
-        return () => unsubscribe();
+            return () => unsubscribe();
+        } catch (e) {
+            setCustomModalMessage(`${lang.errorAuth} ${e.message}`);
+        }
+    }, [lang.errorAuth]);
+
+    // Praćenje promjena u bazi podataka
+    useEffect(() => {
+        if (db && userId) {
+            const userMedicinesCollection = collection(db, `/artifacts/${appId}/users/${userId}/medicines`);
+            const q = query(userMedicinesCollection);
+            const unsubscribe = onSnapshot(q, (querySnapshot) => {
+                const fetchedMedicines = [];
+                querySnapshot.forEach((doc) => {
+                    fetchedMedicines.push({ id: doc.id, ...doc.data() });
+                });
+                setMedicines(fetchedMedicines);
+            }, (error) => {
+                console.error("Error fetching medicines: ", error);
+                setCustomModalMessage(`${lang.errorFetch} ${error.message}`);
+            });
+            return () => unsubscribe();
+        }
+    }, [db, userId, lang.errorFetch]);
+
+    // PWA ikone i manifest, Service Worker
+    useEffect(() => {
+        const manifest = {
+            "name": "Pill Reminder App",
+            "short_name": "PillReminder",
+            "description": "Jednostavna aplikacija za podsjetnik na lijekove.",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#f3f4e6",
+            "theme_color": "#4b5563",
+            "icons": [
+                {
+                    "src": "https://placehold.co/72x72/4f46e5/ffffff?text=Pill",
+                    "sizes": "72x72",
+                    "type": "image/png"
+                },
+                {
+                    "src": "https://placehold.co/96x96/4f46e5/ffffff?text=Pill",
+                    "sizes": "96x96",
+                    "type": "image/png"
+                },
+                {
+                    "src": "https://placehold.co/128x128/4f46e5/ffffff?text=Pill",
+                    "sizes": "128x128",
+                    "type": "image/png"
+                },
+                {
+                    "src": "https://placehold.co/144x144/4f46e5/ffffff?text=Pill",
+                    "sizes": "144x144",
+                    "type": "image/png"
+                },
+                {
+                    "src": "https://placehold.co/152x152/4f46e5/ffffff?text=Pill",
+                    "type": "image/png"
+                },
+                {
+                    "src": "https://placehold.co/192x192/4f46e5/ffffff?text=Pill",
+                    "sizes": "192x192",
+                    "type": "image/png"
+                },
+                {
+                    "src": "https://placehold.co/384x384/4f46e5/ffffff?text=Pill",
+                    "sizes": "384x384",
+                    "type": "image/png"
+                },
+                {
+                    "src": "https://placehold.co/512x512/4f46e5/ffffff?text=Pill",
+                    "sizes": "512x512",
+                    "type": "image/png"
+                }
+            ]
+        };
+
+        const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+        const manifestURL = URL.createObjectURL(blob);
+
+        const manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        manifestLink.href = manifestURL;
+        document.head.appendChild(manifestLink);
+
+        // Service worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js', {
+                    scope: '/'
+                }).then(registration => {
+                    console.log('Service Worker registriran sa opsegom:', registration.scope);
+                }).catch(error => {
+                    console.error('Registracija Service Worker-a nije uspjela:', error);
+                });
+            });
+        }
     }, []);
 
-    // --- Dohvaćanje podataka iz Firestorea ---
+    // PWA ikone i manifest, Service Worker
     useEffect(() => {
-        if (!isAuthReady || !userId || !db) return;
+        const manifest = {
+            "name": "Pill Reminder App",
+            "short_name": "PillReminder",
+            "description": "Jednostavna aplikacija za podsjetnik na lijekove.",
+            "start_url": ".",
+            "display": "standalone",
+            "background_color": "#f3f4e6",
+            "theme_color": "#4b5563",
+            "icons": [
+                { "src": "https://placehold.co/72x72/4f46e5/ffffff?text=Pill", "sizes": "72x72", "type": "image/png" },
+                { "src": "https://placehold.co/96x96/4f46e5/ffffff?text=Pill", "sizes": "96x96", "type": "image/png" },
+                { "src": "https://placehold.co/128x128/4f46e5/ffffff?text=Pill", "sizes": "128x128", "type": "image/png" },
+                { "src": "https://placehold.co/144x144/4f46e5/ffffff?text=Pill", "sizes": "144x144", "type": "image/png" },
+                { "src": "https://placehold.co/152x152/4f46e5/ffffff?text=Pill", "sizes": "152x152", "type": "image/png" },
+                { "src": "https://placehold.co/192x192/4f46e5/ffffff?text=Pill", "sizes": "192x192", "type": "image/png" },
+                { "src": "https://placehold.co/384x384/4f46e5/ffffff?text=Pill", "sizes": "384x384", "type": "image/png" },
+                { "src": "https://placehold.co/512x512/4f46e5/ffffff?text=Pill", "sizes": "512x512", "type": "image/png" }
+            ]
+        };
 
-        const collectionPath = `/artifacts/${typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'}/users/${userId}/medicines`;
-        const q = query(collection(db, collectionPath));
+        const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+        const manifestURL = URL.createObjectURL(blob);
 
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const medicinesData = [];
-            snapshot.forEach((doc) => {
-                medicinesData.push({ id: doc.id, ...doc.data() });
+        const manifestLink = document.createElement('link');
+        manifestLink.rel = 'manifest';
+        manifestLink.href = manifestURL;
+        document.head.appendChild(manifestLink);
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js', {
+                    scope: '/'
+                }).then(registration => {
+                    console.log('Service Worker registriran sa opsegom:', registration.scope);
+                }).catch(error => {
+                    console.error('Registracija Service Worker-a nije uspjela:', error);
+                });
             });
-            setMedicines(medicinesData);
-        }, (error) => {
-            console.error("Greška pri dohvaćanju podataka: ", error);
-        });
-
-        return () => unsubscribe();
-    }, [isAuthReady, userId, db]);
-
-    // --- Funkcije za rukovanje podacima i UI-jem ---
-    const showMessage = (message, isError = false, confirmAction = null, showConfirmCancel = false) => {
-        setCustomModalMessage(message);
-        setCustomModalAction(() => confirmAction);
-        setShowConfirmCancel(showConfirmCancel);
-        setShowCustomModal(true);
-    };
-
-    const confirmAction = (result) => {
-        if (customModalAction) {
-            customModalAction(result);
         }
-        setShowCustomModal(false);
-        setCustomModalMessage('');
-        setCustomModalAction(null);
-        setShowConfirmCancel(false);
+    }, []);
+
+    const showCustomModal = (message, showConfirm = false, onConfirm = () => {}, onCancel = () => {}) => {
+        setCustomModalMessage(message);
+        setShowConfirmCancel(showConfirm);
+        setConfirmAction(() => (confirmed) => {
+            setCustomModalMessage('');
+            setShowConfirmCancel(false);
+            if (confirmed) {
+                onConfirm();
+            } else {
+                onCancel();
+            }
+        });
     };
 
-    const handleSave = async (e) => {
+    const handleAddOrEdit = async (e) => {
         e.preventDefault();
-        try {
-            const form = e.target;
-            const medicineName = form.medicineName.value;
-            const medicineTimes = form.medicineTimes.value.split(',').map(t => t.trim());
-            const startDate = form.startDate.value;
-            const endDate = form.endDate.value;
-            const medicineType = form.medicineType.value;
-            
-            // Konvertiramo tip u jezično neovisan ključ
-            const languageIndependentType = medicineTypeKeys[medicineType] || medicineType;
-            
-            const newMedicine = {
-                name: medicineName,
-                times: medicineTimes,
-                startDate: startDate,
-                endDate: endDate,
-                type: languageIndependentType,
-                userId: userId,
-            };
+        const name = e.target.name.value;
+        const times = e.target.times.value.split(',').map(t => t.trim());
+        const startDate = e.target.startDate.value;
+        const endDate = e.target.endDate.value;
+        const type = e.target.type.value;
 
-            const collectionPath = `/artifacts/${typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'}/users/${userId}/medicines`;
-            if (editMedicine) {
-                const medicineDocRef = doc(db, collectionPath, editMedicine.id);
-                await setDoc(medicineDocRef, newMedicine, { merge: true });
+        if (!name || times.length === 0 || !startDate || !endDate || !type) {
+            showCustomModal("Sva polja su obavezna!");
+            return;
+        }
+
+        if (!isValidDate(startDate) || !isValidDate(endDate)) {
+            showCustomModal("Datum mora biti u formatu YYYY-MM-DD");
+            return;
+        }
+
+        const newMedicine = {
+            name,
+            times,
+            startDate,
+            endDate,
+            type,
+            takenDates: [],
+        };
+
+        try {
+            if (editingMedicine) {
+                const medicineDoc = doc(db, `/artifacts/${appId}/users/${userId}/medicines`, editingMedicine.id);
+                await setDoc(medicineDoc, newMedicine);
             } else {
-                await addDoc(collection(db, collectionPath), newMedicine);
+                const userMedicinesCollection = collection(db, `/artifacts/${appId}/users/${userId}/medicines`);
+                await addDoc(userMedicinesCollection, newMedicine);
+            }
+            setIsModalOpen(false);
+            setEditingMedicine(null);
+        } catch (e) {
+            showCustomModal(`${lang.errorSave} ${e.message}`);
+        }
+    };
+
+    const handleDelete = async (id) => {
+        showCustomModal(lang.confirmMessage, true, async () => {
+            try {
+                await deleteDoc(doc(db, `/artifacts/${appId}/users/${userId}/medicines`, id));
+            } catch (e) {
+                showCustomModal(`${lang.errorDelete} ${e.message}`);
+            }
+        }, () => {});
+    };
+
+    const handleTake = async (id, time) => {
+        try {
+            const medicineRef = doc(db, `/artifacts/${appId}/users/${userId}/medicines`, id);
+            const today = new Date().toISOString().slice(0, 10);
+            const medicine = medicines.find(m => m.id === id);
+
+            if (medicine && medicine.takenDates.includes(`${today} ${time}`)) {
+                showCustomModal(`${lang.pillAlreadyTaken} za ${time}`);
+                return;
             }
 
-            setIsAddModalOpen(false);
-            setEditMedicine(null);
-        } catch (error) {
-            showMessage(lang.errorSave + error.message, true);
+            const newTakenDates = [...(medicine?.takenDates || []), `${today} ${time}`];
+            await setDoc(medicineRef, { takenDates: newTakenDates }, { merge: true });
+            showCustomModal(`${lang.pillTaken}: ${medicine?.name} u ${time}`);
+        } catch (e) {
+            showCustomModal(`${lang.errorSave} ${e.message}`);
         }
-    };
-
-    const handleDelete = (id) => {
-        showMessage(
-            lang.deleteConfirmation,
-            false,
-            async (result) => {
-                if (result) {
-                    try {
-                        const collectionPath = `/artifacts/${typeof __app_id !== 'undefined' ? __app_id : 'default-app-id'}/users/${userId}/medicines`;
-                        await deleteDoc(doc(db, collectionPath, id));
-                    } catch (error) {
-                        showMessage(lang.errorDelete + error.message, true);
-                    }
-                }
-            },
-            true
-        );
-    };
-
-    const handleEdit = (medicine) => {
-        setEditMedicine(medicine);
-        setIsAddModalOpen(true);
     };
 
     const handleLogout = async () => {
         try {
             await signOut(auth);
             setUserId(null);
-        } catch (error) {
-            console.error("Greška pri odjavi:", error);
+            setMedicines([]);
+            showCustomModal(lang.successLogout);
+        } catch (e) {
+            showCustomModal(`${lang.errorAuth} ${e.message}`);
         }
     };
+    
+    // Provjera i notifikacija za lijekove
+    useEffect(() => {
+        const checkReminders = () => {
+            const now = new Date();
+            const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+            const today = now.toISOString().slice(0, 10);
 
-    const handleLanguageChange = (e) => {
-        const value = e.target.value;
-        setCurrentLanguage(value);
-        localStorage.setItem('language', value);
+            medicines.forEach(med => {
+                const isToday = new Date(med.startDate) <= now && new Date(med.endDate) >= now;
+                const isTaken = med.takenDates.some(date => date.startsWith(today));
+
+                if (isToday && med.times.includes(currentTime) && !isTaken) {
+                    setIsPillReminderModalOpen(true);
+                    setCurrentPillReminder({ ...med, id: med.id, time: currentTime });
+                }
+            });
+        };
+
+        const interval = setInterval(checkReminders, 60000); // Provjeravaj svaku minutu
+        return () => clearInterval(interval);
+    }, [medicines]);
+
+
+    const toggleTheme = () => {
+        const isDark = document.documentElement.classList.toggle('dark');
+        localStorage.setItem('theme', isDark ? 'dark' : 'light');
     };
 
-    const handleDarkModeChange = (e) => {
-        const checked = e.target.checked;
-        setIsDarkMode(checked);
-        if (checked) {
+    useEffect(() => {
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark');
-            localStorage.theme = 'dark';
         } else {
             document.documentElement.classList.remove('dark');
-            localStorage.theme = 'light';
         }
-    };
+    }, []);
 
-    // --- Rendering ---
     if (!isAuthReady) {
         return (
             <div className="flex items-center justify-center min-h-screen dark:bg-gray-900 bg-gray-100">
-                <div className="text-xl font-semibold dark:text-white">Učitavanje...</div>
+                <div className="text-gray-900 dark:text-white">Učitavanje...</div>
+            </div>
+        );
+    }
+
+    if (!userId) {
+        return (
+            <div className="flex items-center justify-center min-h-screen dark:bg-gray-900 bg-gray-100">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-sm">
+                    <div className="text-center pb-2">
+                        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{lang.authTitleLogin}</h2>
+                    </div>
+                    <div className="pt-0 grid gap-4">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
+                            {lang.loginPrompt}
+                        </p>
+                        <button onClick={() => setUserId(crypto.randomUUID())} className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors">
+                            {lang.anonymousLogin}
+                        </button>
+                    </div>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-100 dark:bg-gray-900 transition-colors duration-500 font-sans p-4 md:p-8">
-            {userId ? (
-                // Glavna aplikacija
-                <div className="max-w-4xl mx-auto">
-                    {/* Zaglavlje i kontrole */}
-                    <header className="flex justify-between items-center mb-6 flex-wrap gap-4">
-                        <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{lang.mainTitle}</h1>
-                        <div className="flex items-center space-x-4">
-                            {/* Prekidač za jezik */}
-                            <div className="relative">
-                                <button className="p-2 text-gray-700 dark:text-gray-300" onClick={() => setShowCustomModal(true)}>
-                                    <Globe className="h-6 w-6" />
-                                </button>
-                                {/* Ovdje se koristi modal za odabir jezika */}
-                            </div>
-                            
-                            {/* Prekidač za tamni/svjetli mod */}
-                            <div className="flex items-center space-x-2">
-                                <Sun className="h-5 w-5 text-yellow-500" />
-                                <label className="relative inline-block w-12 h-6 cursor-pointer">
-                                    <input 
-                                        type="checkbox" 
-                                        className="hidden peer"
-                                        checked={isDarkMode}
-                                        onChange={handleDarkModeChange}
-                                    />
-                                    <span className="absolute inset-0 bg-gray-300 rounded-full transition peer-checked:bg-indigo-600"></span>
-                                    <span className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition transform peer-checked:translate-x-6"></span>
-                                </label>
-                                <Moon className="h-5 w-5 text-purple-500" />
-                            </div>
-
-                            {/* Gumb za dodavanje lijeka */}
-                            <button className="p-2 text-indigo-600 hover:text-indigo-800 transition-colors" onClick={() => setIsAddModalOpen(true)}>
-                                <PlusCircle className="h-6 w-6" />
-                            </button>
-                            
-                            {/* Prikaz korisničkog ID-a i odjava */}
-                            <div className="relative">
-                                <div className="p-2 text-gray-700 dark:text-gray-300 flex items-center space-x-2">
-                                    <span className="truncate max-w-[80px]">{lang.user}</span>
-                                    <LogOut className="h-6 w-6 cursor-pointer" onClick={handleLogout} />
-                                </div>
+        <div className="bg-gray-100 dark:bg-gray-900 min-h-screen transition-colors duration-500 p-4 font-sans">
+            <div className="container mx-auto max-w-2xl">
+                <header className="flex justify-between items-center py-6 px-4">
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{lang.mainTitle}</h1>
+                    <div className="flex items-center space-x-4">
+                        <div className="relative">
+                            <select
+                                className="bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-2 py-1"
+                                value={currentLanguage}
+                                onChange={(e) => {
+                                    setCurrentLanguage(e.target.value);
+                                    localStorage.setItem('language', e.target.value);
+                                }}
+                            >
+                                <option value="hr">HR</option>
+                                <option value="en">EN</option>
+                            </select>
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                                <Globe size={16} />
                             </div>
                         </div>
-                    </header>
+                        <button onClick={toggleTheme} className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white transition-colors duration-300">
+                            <Sun className="dark:hidden" size={24} />
+                            <Moon className="hidden dark:block" size={24} />
+                        </button>
+                        <button onClick={handleLogout} className="p-2 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors duration-300">
+                            <LogOut size={24} />
+                        </button>
+                    </div>
+                </header>
 
-                    {/* Prikaz liste lijekova */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <main className="mt-8">
+                    <div className="flex justify-end mb-6">
+                        <button onClick={() => setIsModalOpen(true)} className="flex items-center justify-center px-6 py-3 bg-indigo-600 text-white rounded-full font-bold shadow-lg hover:bg-indigo-700 transition-colors transform hover:scale-105">
+                            <PlusCircle size={24} className="mr-2" />
+                            {lang.buttonAdd}
+                        </button>
+                    </div>
+
+                    <div className="grid gap-6">
                         {medicines.length > 0 ? (
-                            medicines.map((medicine, index) => (
-                                <div key={medicine.id} className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 transition-transform duration-200 transform hover:-translate-y-1 hover:shadow-2xl">
-                                    <div className="flex flex-row items-center justify-between space-y-0 pb-2">
-                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white">{medicine.name}</h3>
-                                        <div className="flex items-center space-x-2">
-                                            <button onClick={(e) => { e.stopPropagation(); handleEdit(medicine); }} className="p-2 text-indigo-500 hover:text-indigo-700">
-                                                <Edit className="h-5 w-5" />
+                            medicines.map((med, index) => (
+                                <div key={med.id} className="relative bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 flex flex-col transition-transform hover:scale-[1.02] duration-300">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="flex items-center space-x-4">
+                                            <div className="text-4xl">
+                                                {medicineTypes[med.type] || '❓'}
+                                            </div>
+                                            <div>
+                                                <h2 className="text-xl font-bold text-gray-900 dark:text-white">{med.name}</h2>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">{lang.pillType[med.type]}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex space-x-2">
+                                            <button onClick={() => {
+                                                setEditingMedicine(med);
+                                                setIsModalOpen(true);
+                                            }} className="p-2 rounded-full text-indigo-600 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                                                <Edit size={20} />
                                             </button>
-                                            <button onClick={(e) => { e.stopPropagation(); handleDelete(medicine.id); }} className="p-2 text-red-500 hover:text-red-700">
-                                                <Trash2 className="h-5 w-5" />
+                                            <button onClick={() => handleDelete(med.id)} className="p-2 rounded-full text-red-600 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                                                <Trash2 size={20} />
                                             </button>
                                         </div>
                                     </div>
-                                    <div className="pt-0">
-                                        <p className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-2">
-                                            <Pill className="mr-2 h-4 w-4" /> {lang[`medicineType${medicine.type.charAt(0).toUpperCase() + medicine.type.slice(1)}`]}
+
+                                    <div className="grid grid-cols-2 gap-4 text-gray-700 dark:text-gray-300 mb-4">
+                                        <div className="flex items-center space-x-2">
+                                            <Calendar size={16} />
+                                            <span>{med.startDate} - {med.endDate}</span>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <Clock size={16} />
+                                            <span>{med.times.join(', ')}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="border-t border-gray-200 dark:border-gray-700 pt-4 flex justify-between items-center">
+                                        <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">
+                                            {med.takenDates.length > 0 ? (
+                                                med.takenDates.join(', ')
+                                            ) : (
+                                                'Nema zabilježenih unosa'
+                                            )}
                                         </p>
-                                        <p className="flex items-center text-sm text-gray-500 dark:text-gray-400 mb-2">
-                                            <Clock className="mr-2 h-4 w-4" /> {medicine.times.join(', ')}
-                                        </p>
-                                        <p className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                                            <Calendar className="mr-2 h-4 w-4" /> {medicine.startDate} - {medicine.endDate}
-                                        </p>
+                                        <div className="flex space-x-2">
+                                            {med.times.map(time => (
+                                                <button
+                                                    key={time}
+                                                    onClick={() => handleTake(med.id, time)}
+                                                    className="px-3 py-1 bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-200 rounded-full font-semibold text-xs hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
+                                                >
+                                                    {time}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
                             ))
                         ) : (
-                            <div className="col-span-full text-center py-10 text-gray-500 dark:text-gray-400">
-                                <AlertCircle className="mx-auto h-12 w-12 mb-4" />
-                                <p>{lang.noMedicinesText}</p>
+                            <div className="flex flex-col items-center justify-center h-64 text-center text-gray-500 dark:text-gray-400">
+                                <Pill size={48} className="mb-4 text-gray-400 dark:text-gray-600" />
+                                <p className="text-xl font-medium">{lang.noMedicinesText}</p>
                             </div>
                         )}
                     </div>
+                </main>
+            </div>
 
-                    {/* Modal za dodavanje/uređivanje */}
-                    {isAddModalOpen && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-                            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-6 w-full max-w-sm">
-                                <div className="pb-2">
-                                    <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{editMedicine ? lang.modalTitleEdit : lang.modalTitleAdd}</h2>
-                                </div>
-                                <div className="pt-0">
-                                    <form onSubmit={handleSave} className="grid gap-4">
-                                        <div>
-                                            <label htmlFor="medicineName" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{lang.labelName}</label>
-                                            <input id="medicineName" name="medicineName" defaultValue={editMedicine?.name || ''} required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="medicineTimes" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{lang.labelTimes}</label>
-                                            <input id="medicineTimes" name="medicineTimes" defaultValue={editMedicine?.times.join(', ') || ''} required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="startDate" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{lang.labelStartDate}</label>
-                                            <input id="startDate" name="startDate" type="date" defaultValue={editMedicine?.startDate || ''} required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="endDate" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{lang.labelEndDate}</label>
-                                            <input id="endDate" name="endDate" type="date" defaultValue={editMedicine?.endDate || ''} required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
-                                        </div>
-                                        <div>
-                                            <label htmlFor="medicineType" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{lang.labelType}</label>
-                                            <select name="medicineType" defaultValue={editMedicine?.type || ''} className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
-                                                <option value="" disabled>{lang.labelType}</option>
-                                                {Object.keys(medicineTypeKeys).map(key => (
-                                                    <option key={key} value={key}>{translations[currentLanguage][`medicineType${medicineTypeKeys[key].charAt(0).toUpperCase() + medicineTypeKeys[key].slice(1)}`]}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                        <div className="flex justify-end space-x-2 mt-4">
-                                            <button type="button" className="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg font-semibold hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors" onClick={() => { setIsAddModalOpen(false); setEditMedicine(null); }}>
-                                                {lang.buttonCancel}
-                                            </button>
-                                            <button type="submit" className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors">{lang.buttonSave}</button>
-                                        </div>
-                                    </form>
-                                </div>
+            {/* Modal za dodavanje/uređivanje lijeka */}
+            {isModalOpen && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 w-full max-w-md">
+                        <h2 className="text-2xl font-bold mb-6 text-center text-gray-900 dark:text-white">{editingMedicine ? lang.editPill : lang.modalTitle}</h2>
+                        <form onSubmit={handleAddOrEdit} className="grid gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="name">{lang.labelName}</label>
+                                <input id="name" name="name" type="text" defaultValue={editingMedicine?.name || ''} className="w-full px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
                             </div>
-                        </div>
-                    )}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="times">{lang.labelTimes}</label>
+                                <input id="times" name="times" type="text" defaultValue={editingMedicine?.times.join(', ') || ''} placeholder="08:00, 14:30, 20:00" className="w-full px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="startDate">{lang.labelStartDate}</label>
+                                <input id="startDate" name="startDate" type="date" defaultValue={editingMedicine?.startDate || ''} className="w-full px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="endDate">{lang.labelEndDate}</label>
+                                <input id="endDate" name="endDate" type="date" defaultValue={editingMedicine?.endDate || ''} className="w-full px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="type">{lang.labelType}</label>
+                                <select id="type" name="type" defaultValue={editingMedicine?.type || 'tableta'} className="w-full px-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="tableta">{lang.pillType['tableta']}</option>
+                                    <option value="sirup">{lang.pillType['sirup']}</option>
+                                    <option value="sprej">{lang.pillType['sprej']}</option>
+                                    <option value="injekcija">{lang.pillType['injekcija']}</option>
+                                </select>
+                            </div>
+                            <div className="flex justify-end space-x-4 mt-6">
+                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white rounded-xl font-semibold hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors">{lang.buttonCancel}</button>
+                                <button type="submit" className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-semibold hover:bg-indigo-700 transition-colors">{lang.buttonSave}</button>
+                            </div>
+                        </form>
+                    </div>
                 </div>
-            ) : (
-                // Prikaz forme za prijavu
-                <div className="flex items-center justify-center min-h-screen dark:bg-gray-900 bg-gray-100">
-                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-sm">
-                        <div className="text-center pb-2">
-                            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{lang.authTitleLogin}</h2>
-                        </div>
-                        <div className="pt-0 grid gap-4">
-                            <p className="text-xs text-gray-500 dark:text-gray-400 text-center">
-                                Aplikacija je povezana s internom bazom podataka i ne traži lozinku.
-                            </p>
-                            <button onClick={() => setUserId(crypto.randomUUID())} className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors">
-                                Anonimna prijava
+            )}
+
+            {/* Modal za podsjetnik na lijek */}
+            {isPillReminderModalOpen && currentPillReminder && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-sm text-center">
+                        <h2 className="text-2xl font-bold mb-2 text-gray-900 dark:text-white">{lang.modalPillTitle}</h2>
+                        <p className="text-gray-800 dark:text-gray-200 mb-4">{lang.modalPillMessage} <span className="font-semibold text-indigo-600">{currentPillReminder.name}</span></p>
+                        <div className="flex justify-center">
+                            <button className="px-6 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors" onClick={() => {
+                                handleTake(currentPillReminder.id, currentPillReminder.time);
+                                setIsPillReminderModalOpen(false);
+                            }}>
+                                {lang.modalPillButton}
                             </button>
                         </div>
                     </div>
                 </div>
             )}
+
             <CustomModal
                 message={customModalMessage}
                 onConfirm={() => confirmAction(true)}
