@@ -32,7 +32,7 @@ const medicineTypeKeys = {
 // Mapa emojija koristeći jezično neovisne ključeve
 const medicineTypes = {
     'tablet': '💊',
-    'syrup': '�',
+    'syrup': '🧴',
     'spray': '👃',
     'injection': '💉'
 };
