@@ -1,0 +1,24 @@
+{
+  "name": "pra",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "echo 'No build step required for this project, just run npm install' && exit 0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/username77777777777/pill-reminder-app.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/username77777777777/pill-reminder-app/issues"
+  },
+  "homepage": "https://github.com/username77777777777/pill-reminder-app#readme",
+  "description": "",
+  "dependencies": {
+    "firebase": "^10.12.2"
+  }
+}
