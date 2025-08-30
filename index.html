@@ -8,525 +8,393 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
         body {
             font-family: 'Inter', sans-serif;
             transition: background-color 0.5s, color 0.5s;
         }
+
         body.dark {
             background-color: #111827;
             color: #e5e7eb;
         }
+
         .card-container {
             opacity: 0;
             transform: translateY(20px);
             animation: fade-in 0.5s forwards;
             transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
         }
+
         .card-container:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
         }
+
         @keyframes fade-in {
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
+
         .card-container.taken {
             background-color: #d1d5db;
             opacity: 0.6;
         }
+
         body.dark .card-container.taken {
             background-color: #374151;
         }
-        .modal {
-            transition: opacity 0.3s ease-in-out;
-        }
-        .modal.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        .modal.open {
-            opacity: 1;
-            pointer-events: auto;
+
+        .edit-form-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
         }
     </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-500 font-sans">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen flex flex-col items-center p-4">
 
-    <!-- Kontejner za prijavu/registraciju -->
-    <div id="auth-container" class="min-h-screen flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-sm transform transition duration-500 hover:scale-105">
-            <div class="text-center">
-                <h2 id="auth-title" class="text-2xl font-bold text-gray-900 dark:text-white">Prijava</h2>
-            </div>
-            <form id="auth-form" class="mt-8 space-y-4">
-                <div>
-                    <input type="email" id="auth-email" placeholder="E-mail adresa" required
-                           class="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600">
-                </div>
-                <div>
-                    <input type="password" id="auth-password" placeholder="Lozinka" required
-                           class="w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-600">
-                </div>
-                <button type="submit" id="auth-button"
-                        class="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors">
-                    Prijavi se
-                </button>
-            </form>
-            <div class="text-center mt-4">
-                <button id="auth-toggle" class="text-sm text-indigo-600 hover:underline">Nemate račun? Registrirajte se</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Glavni kontejner aplikacije -->
-    <div id="app-container" class="min-h-screen p-4 hidden">
-        <header class="flex justify-between items-center py-4 px-2">
-            <h1 id="main-title" class="text-2xl font-bold text-gray-900 dark:text-white">Moji lijekovi</h1>
-            <div class="flex space-x-2">
-                <button id="add-medicine-button" class="p-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors">
-                    <i class="fas fa-plus"></i>
-                </button>
-                <button id="dark-mode-toggle" class="p-2 rounded-full bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors">
-                    <i class="fas fa-moon dark:hidden"></i>
-                    <i class="fas fa-sun hidden dark:inline"></i>
-                </button>
-                <button id="logout-button" class="p-2 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors">
-                    <i class="fas fa-sign-out-alt"></i>
-                </button>
-            </div>
-        </header>
-
-        <main id="medicines-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-8"></main>
-
-        <div id="no-medicines-message" class="text-center text-gray-500 dark:text-gray-400 mt-8 hidden">
-            <p>Još nema dodanih lijekova. Dodaj novi podsjetnik!</p>
-        </div>
-    </div>
-
-    <!-- Modal za dodavanje/uređivanje -->
-    <div id="add-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden modal">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-sm">
-            <h2 id="modal-title" class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Dodaj novi lijek</h2>
-            <form id="medicine-form" class="space-y-4">
-                <div>
-                    <label for="medicine-name" class="block text-gray-700 dark:text-gray-300 font-medium mb-1">Ime lijeka</label>
-                    <input type="text" id="medicine-name" required
-                           class="w-full px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600">
-                </div>
-                <div>
-                    <label for="medicine-type" class="block text-gray-700 dark:text-gray-300 font-medium mb-1">Vrsta lijeka</label>
-                    <select id="medicine-type" required
-                            class="w-full px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600">
-                        <option value="tableta">💊 Tableta</option>
-                        <option value="sirup">🧴 Sirup</option>
-                        <option value="sprej">👃 Sprej</option>
-                        <option value="injekcija">💉 Injekcija</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="medicine-times" class="block text-gray-700 dark:text-gray-300 font-medium mb-1">Vrijeme (razdvojeno zarezom)</label>
-                    <input type="text" id="medicine-times" required placeholder="08:00, 14:30, 20:00"
-                           class="w-full px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600">
-                </div>
-                <div>
-                    <label for="start-date" class="block text-gray-700 dark:text-gray-300 font-medium mb-1">Datum početka</label>
-                    <input type="date" id="start-date" required
-                           class="w-full px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600">
-                </div>
-                <div>
-                    <label for="end-date" class="block text-gray-700 dark:text-gray-300 font-medium mb-1">Datum kraja</label>
-                    <input type="date" id="end-date" required
-                           class="w-full px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-600">
-                </div>
-                <div class="flex justify-end space-x-2 mt-4">
-                    <button type="button" id="cancel-button" class="px-4 py-2 bg-gray-300 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg font-semibold hover:bg-gray-400 dark:hover:bg-gray-600 transition-colors">Odustani</button>
-                    <button type="submit" id="save-button" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors">Spremi</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Prilagođeni modal za poruke -->
-    <div id="custom-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 hidden modal">
-        <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 w-full max-w-xs text-center">
-            <p id="custom-modal-message" class="text-gray-800 dark:text-gray-200 mb-4"></p>
-            <div class="flex justify-center space-x-4">
-                <button id="custom-modal-ok" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-semibold hover:bg-indigo-700 transition-colors hidden">OK</button>
-                <button id="custom-modal-cancel" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg font-semibold hover:bg-gray-400 hidden">Odustani</button>
-            </div>
-        </div>
-    </div>
-    
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, doc, getDoc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot, collection, query, where, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { firebaseConfig } from './firebase-config.js';
+        window.firebaseConfig = firebaseConfig;
+    </script>
 
-        // Globalne varijable koje osigurava okruženje
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-        const translations = {
-            hr: {
-                mainTitle: 'Moji lijekovi',
-                noMedicinesText: 'Još nema dodanih lijekova. Dodaj novi podsjetnik!',
-                authTitleLogin: 'Prijava',
-                authTitleRegister: 'Registracija',
-                authToggleLogin: 'Nemate račun? Registrirajte se',
-                authToggleRegister: 'Već imate račun? Prijavite se',
-                authSubmitLogin: 'Prijavi se',
-                authSubmitRegister: 'Registriraj se',
-                modalTitleAdd: 'Dodaj novi lijek',
-                modalTitleEdit: 'Uredi lijek',
-                labelName: 'Ime lijeka',
-                labelTimes: 'Vrijeme (razdvojeno zarezom)',
-                labelStartDate: 'Datum početka',
-                labelEndDate: 'Datum kraja',
-                labelType: 'Vrsta lijeka',
-                buttonCancel: 'Odustani',
-                buttonSave: 'Spremi',
-                buttonUpdate: 'Ažuriraj',
-                errorAuth: 'Greška pri autentifikaciji:',
-                successLogout: 'Uspješno ste se odjavili.',
-                deleteConfirm: 'Jeste li sigurni da želite obrisati ovaj podsjetnik?',
-                errorDelete: 'Greška pri brisanju podsjetnika:',
-                errorSave: 'Greška pri spremanju podataka:',
-                errorDataLoad: 'Greška pri učitavanju podataka:',
-                pillTaken: 'Uzeto!',
-                pillUnTaken: 'Označite kao uzeto'
-            }
-        };
+    <div id="auth-container" class="w-full max-w-sm mx-auto p-6 bg-white dark:bg-gray-800 rounded-xl shadow-lg mt-10">
+        <h1 class="text-3xl font-bold text-center text-gray-900 dark:text-white mb-4">Prijavi se</h1>
+        <p class="text-center text-gray-600 dark:text-gray-400 mb-6">Prijavi se anonimno za korištenje aplikacije.</p>
+        <div class="flex justify-center">
+            <button id="anon-login-btn" class="px-6 py-3 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                Prijavi se anonimno
+            </button>
+        </div>
+    </div>
 
+    <div id="app-container" class="hidden w-full max-w-xl mx-auto mt-8 flex flex-col gap-4">
+
+        <div class="flex justify-between items-center mb-4">
+            <h1 class="text-3xl font-bold">Podsjetnici</h1>
+            <div class="flex items-center gap-2">
+                <div class="relative">
+                    <button id="theme-toggle-btn" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400">
+                        <i id="light-icon" class="fa-solid fa-sun text-gray-800 dark:text-gray-200"></i>
+                        <i id="dark-icon" class="fa-solid fa-moon text-gray-800 dark:text-gray-200 hidden"></i>
+                    </button>
+                </div>
+                <button id="add-btn" class="p-2 rounded-full bg-indigo-600 text-white hover:bg-indigo-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <i class="fa-solid fa-plus-circle"></i>
+                </button>
+                <button id="logout-btn" class="p-2 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="medicine-list" class="flex flex-col gap-4">
+            </div>
+
+        <div id="edit-form-container" class="hidden fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 z-50">
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-sm">
+                <h2 id="form-title" class="text-xl font-bold mb-4">Dodaj podsjetnik</h2>
+                <form id="medicine-form" class="flex flex-col gap-4">
+                    <input type="hidden" id="medicine-id">
+                    <input type="text" id="medicine-name" placeholder="Naziv lijeka" required class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-100 dark:bg-gray-700">
+                    <input type="time" id="medicine-time" required class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-100 dark:bg-gray-700">
+                    <div class="flex justify-end gap-2">
+                        <button type="button" id="cancel-btn" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">Odustani</button>
+                        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">Spremi</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="custom-modal-container" class="hidden fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-75 z-50">
+            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl w-full max-w-xs text-center">
+                <p id="custom-modal-message" class="mb-4 text-gray-800 dark:text-gray-200"></p>
+                <div id="confirm-cancel-buttons" class="flex justify-center gap-2">
+                    <button id="confirm-btn" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">Potvrdi</button>
+                    <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">Odustani</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Ovdje se nalazi sva JavaScript logika
+        // ... (cijeli vaš JavaScript kod je uključen ovdje) ...
+
+        const app = firebase.initializeApp(window.firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // Varijable i elementi DOM-a
         const authContainer = document.getElementById('auth-container');
         const appContainer = document.getElementById('app-container');
-        const authForm = document.getElementById('auth-form');
-        const authTitle = document.getElementById('auth-title');
-        const authButton = document.getElementById('auth-button');
-        const authToggle = document.getElementById('auth-toggle');
-        const authEmail = document.getElementById('auth-email');
-        const authPassword = document.getElementById('auth-password');
-        const medicinesList = document.getElementById('medicines-list');
-        const noMedicinesMessage = document.getElementById('no-medicines-message');
-        const addModal = document.getElementById('add-modal');
-        const addMedicineButton = document.getElementById('add-medicine-button');
-        const logoutButton = document.getElementById('logout-button');
+        const anonLoginBtn = document.getElementById('anon-login-btn');
+        const logoutBtn = document.getElementById('logout-btn');
+        const addBtn = document.getElementById('add-btn');
+        const medicineList = document.getElementById('medicine-list');
+        const editFormContainer = document.getElementById('edit-form-container');
+        const medicineForm = document.getElementById('medicine-form');
+        const formTitle = document.getElementById('form-title');
+        const medicineIdInput = document.getElementById('medicine-id');
         const medicineNameInput = document.getElementById('medicine-name');
-        const medicineTimesInput = document.getElementById('medicine-times');
-        const startDateInput = document.getElementById('start-date');
-        const endDateInput = document.getElementById('end-date');
-        const medicineTypeInput = document.getElementById('medicine-type');
-        const cancelButton = document.getElementById('cancel-button');
-        const saveButton = document.getElementById('save-button');
-        const modalTitle = document.getElementById('modal-title');
-        const darkModeToggle = document.getElementById('dark-mode-toggle');
-        const customModal = document.getElementById('custom-modal');
+        const medicineTimeInput = document.getElementById('medicine-time');
+        const cancelBtn = document.getElementById('cancel-btn');
+        const customModalContainer = document.getElementById('custom-modal-container');
         const customModalMessage = document.getElementById('custom-modal-message');
-        const customModalOk = document.getElementById('custom-modal-ok');
-        const customModalCancel = document.getElementById('custom-modal-cancel');
-
-        let isLogin = true;
-        let editId = null;
+        const confirmCancelButtons = document.getElementById('confirm-cancel-buttons');
+        const confirmBtn = document.getElementById('confirm-btn');
+        const modalCancelBtn = document.getElementById('modal-cancel-btn');
+        const themeToggleBtn = document.getElementById('theme-toggle-btn');
+        const lightIcon = document.getElementById('light-icon');
+        const darkIcon = document.getElementById('dark-icon');
         let currentUserId = null;
-        let currentLanguage = 'hr';
+        let unsubscribe = null;
+        let medicineReminders = [];
+        const isPWA = window.matchMedia('(display-mode: standalone)').matches;
 
-        // Inicijalizacija Firebasea
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
+        // Jezik i prijevodi
+        const lang = {
+            confirmDeleteTitle: "Potvrdi brisanje",
+            confirmDeleteMessage: "Jeste li sigurni da želite obrisati ovaj podsjetnik?",
+            confirmDeleteConfirm: "Izbriši",
+            confirmDeleteCancel: "Odustani",
+            modalPillTitle: "Podsjetnik za lijek",
+            modalPillMessage: "Vrijeme je za uzimanje",
+            modalPillButton: "Uzeo sam",
+            editFormTitle: "Uredi podsjetnik",
+            addFormTitle: "Dodaj podsjetnik",
+            takeButton: "Uzeo sam",
+            takeNowButton: "Uzmi sad",
+            takenLabel: "Uzet",
+            saveButton: "Spremi"
+        };
+        
+        function getTranslatedString(key) {
+            return lang[key] || key;
+        }
 
-        // Funkcija za prikaz prilagođenog modalnog prozora
-        function showCustomModal(message, isConfirm = false) {
+        // Pomagači za formatiranje vremena
+        function formatTime(timeString) {
+            const [hours, minutes] = timeString.split(':');
+            return `${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
+        }
+        
+        // Prikaz modalnog prozora
+        function showCustomModal(message, showConfirm = false, callback = () => {}) {
             customModalMessage.textContent = message;
-            customModal.classList.remove('hidden');
-            customModal.classList.add('open');
-
-            if (isConfirm) {
-                customModalOk.classList.remove('hidden');
-                customModalCancel.classList.remove('hidden');
+            if (showConfirm) {
+                confirmCancelButtons.classList.remove('hidden');
+                confirmBtn.onclick = () => {
+                    callback(true);
+                    hideCustomModal();
+                };
+                modalCancelBtn.onclick = () => {
+                    callback(false);
+                    hideCustomModal();
+                };
             } else {
-                customModalOk.classList.remove('hidden');
-                customModalCancel.classList.add('hidden');
+                confirmCancelButtons.classList.add('hidden');
+            }
+            customModalContainer.classList.remove('hidden');
+        }
+
+        // Skrivanje modalnog prozora
+        function hideCustomModal() {
+            customModalContainer.classList.add('hidden');
+        }
+
+        // Renderiranje podsjetnika
+        function renderMedicines(medicines) {
+            medicineList.innerHTML = '';
+            medicines.sort((a, b) => a.time.localeCompare(b.time)).forEach(medicine => {
+                const card = document.createElement('div');
+                card.classList.add('card-container', 'bg-white', 'dark:bg-gray-800', 'p-4', 'rounded-xl', 'shadow-md', 'flex', 'flex-col', 'gap-4', 'transition-all');
+                
+                // Provjera je li lijek uzet
+                const today = new Date().toISOString().slice(0, 10);
+                const isTaken = medicine.takenAt && medicine.takenAt.startsWith(today) && medicine.time === formatTime(new Date(medicine.takenAt).toTimeString().slice(0, 5));
+                if (isTaken) {
+                    card.classList.add('taken');
+                }
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-pills text-indigo-600"></i>
+                            <h2 class="text-xl font-semibold">${medicine.name}</h2>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg font-bold text-gray-700 dark:text-gray-300">${medicine.time}</span>
+                            <button class="edit-btn p-2 text-blue-500 hover:text-blue-700 transition-colors" data-id="${medicine.id}">
+                                <i class="fa-solid fa-edit"></i>
+                            </button>
+                            <button class="delete-btn p-2 text-red-500 hover:text-red-700 transition-colors" data-id="${medicine.id}">
+                                <i class="fa-solid fa-trash-alt"></i>
+                            </button>
+                        </div>
+                    </div>
+                    ${isTaken ? `<span class="text-sm font-medium text-green-600">Uzet danas u ${new Date(medicine.takenAt).toLocaleTimeString('hr-HR', { hour: '2-digit', minute: '2-digit' })}</span>` : ''}
+                    <div class="flex justify-end">
+                        <button class="take-btn px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors" data-id="${medicine.id}" data-time="${medicine.time}">
+                            ${isTaken ? 'Uzeto' : 'Uzmi sad'}
+                        </button>
+                    </div>
+                `;
+                medicineList.appendChild(card);
+            });
+        }
+        
+        // Funkcija za dodavanje ili ažuriranje podsjetnika
+        async function saveMedicine(id, name, time) {
+            if (!currentUserId) return;
+            const docRef = doc(db, `artifacts/${window.__app_id}/users/${currentUserId}/medicines`, id);
+            await setDoc(docRef, { name, time });
+            hideEditForm();
+        }
+
+        // Funkcija za brisanje podsjetnika
+        async function deleteMedicine(id) {
+            if (!currentUserId) return;
+            const docRef = doc(db, `artifacts/${window.__app_id}/users/${currentUserId}/medicines`, id);
+            await deleteDoc(docRef);
+        }
+
+        // Funkcija za označavanje kao uzeto
+        async function takeMedicine(id) {
+            if (!currentUserId) return;
+            const docRef = doc(db, `artifacts/${window.__app_id}/users/${currentUserId}/medicines`, id);
+            const docSnap = await getDoc(docRef);
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                await setDoc(docRef, { ...data, takenAt: new Date().toISOString() });
             }
         }
-
-        function closeCustomModal() {
-            customModal.classList.remove('open');
-            customModal.classList.add('hidden');
+        
+        // Prikaz obrasca za uređivanje/dodavanje
+        function showEditForm(medicine = null) {
+            if (medicine) {
+                formTitle.textContent = lang.editFormTitle;
+                medicineIdInput.value = medicine.id;
+                medicineNameInput.value = medicine.name;
+                medicineTimeInput.value = medicine.time;
+            } else {
+                formTitle.textContent = lang.addFormTitle;
+                medicineIdInput.value = '';
+                medicineNameInput.value = '';
+                medicineTimeInput.value = '';
+            }
+            editFormContainer.classList.remove('hidden');
         }
 
-        customModalOk.addEventListener('click', () => closeCustomModal());
-        customModalCancel.addEventListener('click', () => closeCustomModal());
+        // Skrivanje obrasca
+        function hideEditForm() {
+            editFormContainer.classList.add('hidden');
+        }
 
-        // Prijava/Registracija
-        authForm.addEventListener('submit', async (e) => {
+        // Prijavljivanje/odjavljivanje
+        anonLoginBtn.addEventListener('click', () => {
+            auth.signInAnonymously()
+                .catch(error => showCustomModal(`Greška pri prijavi: ${error.message}`));
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            auth.signOut();
+        });
+
+        // Event listeneri
+        addBtn.addEventListener('click', () => showEditForm());
+        cancelBtn.addEventListener('click', hideEditForm);
+
+        medicineForm.addEventListener('submit', (e) => {
             e.preventDefault();
-            const email = authEmail.value;
-            const password = authPassword.value;
+            const id = medicineIdInput.value || Date.now().toString();
+            const name = medicineNameInput.value;
+            const time = medicineTimeInput.value;
+            saveMedicine(id, name, time);
+        });
 
-            try {
-                if (isLogin) {
-                    await signInWithEmailAndPassword(auth, email, password);
-                    showCustomModal('Uspješna prijava!');
-                } else {
-                    await createUserWithEmailAndPassword(auth, email, password);
-                    showCustomModal('Uspješna registracija!');
+        medicineList.addEventListener('click', (e) => {
+            if (e.target.closest('.delete-btn')) {
+                const id = e.target.closest('.delete-btn').dataset.id;
+                showCustomModal(lang.confirmDeleteMessage, true, (confirmed) => {
+                    if (confirmed) {
+                        deleteMedicine(id);
+                    }
+                });
+            } else if (e.target.closest('.edit-btn')) {
+                const id = e.target.closest('.edit-btn').dataset.id;
+                const medicine = medicineReminders.find(m => m.id === id);
+                if (medicine) {
+                    showEditForm(medicine);
                 }
-            } catch (error) {
-                let errorMessage = '';
-                switch (error.code) {
-                    case 'auth/invalid-email':
-                        errorMessage = 'Neispravan format e-mail adrese.';
-                        break;
-                    case 'auth/wrong-password':
-                    case 'auth/user-not-found':
-                        errorMessage = 'Pogrešna e-mail adresa ili lozinka.';
-                        break;
-                    case 'auth/email-already-in-use':
-                        errorMessage = 'Ova e-mail adresa je već u upotrebi.';
-                        break;
-                    case 'auth/weak-password':
-                        errorMessage = 'Lozinka mora imati barem 6 znakova.';
-                        break;
-                    default:
-                        errorMessage = `Greška: ${error.message}`;
-                        break;
-                }
-                showCustomModal(`${translations[currentLanguage].errorAuth} ${errorMessage}`);
+            } else if (e.target.closest('.take-btn')) {
+                const id = e.target.closest('.take-btn').dataset.id;
+                takeMedicine(id);
             }
         });
 
-        authToggle.addEventListener('click', () => {
-            isLogin = !isLogin;
-            if (isLogin) {
-                authTitle.textContent = translations[currentLanguage].authTitleLogin;
-                authButton.textContent = translations[currentLanguage].authSubmitLogin;
-                authToggle.textContent = translations[currentLanguage].authToggleLogin;
+        // Prebacivanje teme
+        themeToggleBtn.addEventListener('click', () => {
+            const isDark = document.documentElement.classList.toggle('dark');
+            if (isDark) {
+                localStorage.setItem('theme', 'dark');
+                darkIcon.classList.remove('hidden');
+                lightIcon.classList.add('hidden');
             } else {
-                authTitle.textContent = translations[currentLanguage].authTitleRegister;
-                authButton.textContent = translations[currentLanguage].authSubmitRegister;
-                authToggle.textContent = translations[currentLanguage].authToggleRegister;
+                localStorage.setItem('theme', 'light');
+                darkIcon.classList.add('hidden');
+                lightIcon.classList.remove('hidden');
             }
         });
 
-        // Praćenje promjena u stanju autentifikacije
-        onAuthStateChanged(auth, async (user) => {
+        // Provjera stanja autentifikacije
+        auth.onAuthStateChanged(user => {
             if (user) {
                 currentUserId = user.uid;
                 authContainer.classList.add('hidden');
                 appContainer.classList.remove('hidden');
-                
-                // Prikaz ID-a korisnika
-                const userIdDisplay = document.createElement('p');
-                userIdDisplay.textContent = `ID korisnika: ${currentUserId}`;
-                userIdDisplay.classList.add('text-xs', 'text-center', 'text-gray-500', 'dark:text-gray-400', 'mt-4');
-                appContainer.prepend(userIdDisplay);
 
-                // Dohvaćanje podataka o lijekovima
-                loadMedicines();
+                if (unsubscribe) {
+                    unsubscribe();
+                }
+
+                const medicineCollectionRef = collection(db, `artifacts/${window.__app_id}/users/${currentUserId}/medicines`);
+                unsubscribe = onSnapshot(medicineCollectionRef, (snapshot) => {
+                    medicineReminders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    renderMedicines(medicineReminders);
+                }, (error) => {
+                    showCustomModal(`Greška pri dohvaćanju podataka: ${error.message}`);
+                });
             } else {
                 currentUserId = null;
                 authContainer.classList.remove('hidden');
                 appContainer.classList.add('hidden');
             }
         });
-        
-        // Prijavljivanje s inicijalnim tokenom
-        if (initialAuthToken) {
-            try {
-                await signInWithCustomToken(auth, initialAuthToken);
-            } catch (e) {
-                await signInAnonymously(auth);
-            }
+
+        const isDarkTheme = localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (isDarkTheme) {
+            document.documentElement.classList.add('dark');
+            darkIcon.classList.remove('hidden');
+            lightIcon.classList.add('hidden');
         } else {
-            await signInAnonymously(auth);
-        }
-
-        // Odjava
-        logoutButton.addEventListener('click', async () => {
-            try {
-                await signOut(auth);
-                showCustomModal(translations[currentLanguage].successLogout);
-            } catch (error) {
-                showCustomModal(`${translations[currentLanguage].errorAuth} ${error.message}`);
-            }
-        });
-
-        // Funkcija za učitavanje podataka iz Firestore-a
-        function loadMedicines() {
-            if (!currentUserId) return;
-            const q = query(collection(db, `/artifacts/${appId}/users/${currentUserId}/medicines`));
-            
-            onSnapshot(q, (snapshot) => {
-                medicinesList.innerHTML = '';
-                const medicines = [];
-                if (snapshot.empty) {
-                    noMedicinesMessage.classList.remove('hidden');
-                } else {
-                    noMedicinesMessage.classList.add('hidden');
-                    snapshot.forEach((doc) => {
-                        medicines.push({ id: doc.id, ...doc.data() });
-                    });
-                    renderMedicines(medicines);
-                }
-            }, (error) => {
-                showCustomModal(`${translations[currentLanguage].errorDataLoad} ${error.message}`);
-            });
-        }
-
-        // Prikaz lijekova
-        function renderMedicines(medicines) {
-            medicinesList.innerHTML = '';
-            const medicineTypes = {
-                'tableta': '💊',
-                'sirup': '🧴',
-                'sprej': '👃',
-                'injekcija': '💉'
-            };
-            medicines.forEach(medicine => {
-                const card = document.createElement('div');
-                card.id = medicine.id;
-                card.classList.add('card-container', 'bg-white', 'dark:bg-gray-800', 'rounded-2xl', 'shadow-lg', 'p-6');
-                
-                let timesHtml = medicine.times.map(time => `<span class="inline-block bg-indigo-100 text-indigo-800 text-xs font-semibold px-2.5 py-0.5 rounded-full dark:bg-indigo-900 dark:text-indigo-300">${time}</span>`).join(' ');
-
-                card.innerHTML = `
-                    <div class="flex items-center space-x-4 mb-4">
-                        <div class="text-3xl">${medicineTypes[medicine.type] || '❓'}</div>
-                        <h3 class="text-xl font-bold text-gray-900 dark:text-white">${medicine.name}</h3>
-                    </div>
-                    <div class="flex flex-wrap gap-2 mb-4">
-                        ${timesHtml}
-                    </div>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">
-                        Od: ${medicine.startDate} do: ${medicine.endDate}
-                    </p>
-                    <div class="flex justify-end space-x-2 mt-4">
-                        <button class="edit-button p-2 rounded-full text-blue-600 hover:bg-blue-100 transition-colors">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="delete-button p-2 rounded-full text-red-600 hover:bg-red-100 transition-colors">
-                            <i class="fas fa-trash-alt"></i>
-                        </button>
-                    </div>
-                `;
-                medicinesList.appendChild(card);
-            });
-            setupCardEventListeners();
-        }
-
-        // Otvaranje/zatvaranje modala za dodavanje/uređivanje
-        addMedicineButton.addEventListener('click', () => {
-            editId = null;
-            modalTitle.textContent = translations[currentLanguage].modalTitleAdd;
-            saveButton.textContent = translations[currentLanguage].buttonSave;
-            addModal.classList.remove('hidden');
-            addModal.classList.add('open');
-            document.getElementById('medicine-form').reset();
-        });
-
-        cancelButton.addEventListener('click', () => {
-            addModal.classList.remove('open');
-            addModal.classList.add('hidden');
-        });
-
-        // Spremanje/ažuriranje lijeka
-        document.getElementById('medicine-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const medicineName = medicineNameInput.value;
-            const medicineTimes = medicineTimesInput.value.split(',').map(t => t.trim());
-            const startDate = startDateInput.value;
-            const endDate = endDateInput.value;
-            const medicineType = medicineTypeInput.value;
-
-            const medicineData = {
-                name: medicineName,
-                times: medicineTimes,
-                startDate: startDate,
-                endDate: endDate,
-                type: medicineType
-            };
-
-            try {
-                if (editId) {
-                    const docRef = doc(db, `/artifacts/${appId}/users/${currentUserId}/medicines`, editId);
-                    await setDoc(docRef, medicineData);
-                } else {
-                    await addDoc(collection(db, `/artifacts/${appId}/users/${currentUserId}/medicines`), medicineData);
-                }
-                addModal.classList.remove('open');
-                addModal.classList.add('hidden');
-                document.getElementById('medicine-form').reset();
-                showCustomModal('Podaci uspješno spremljeni!');
-            } catch (e) {
-                showCustomModal(`${translations[currentLanguage].errorSave} ${e.message}`);
-            }
-        });
-
-        function setupCardEventListeners() {
-            document.querySelectorAll('.edit-button').forEach(button => {
-                button.addEventListener('click', async (e) => {
-                    const id = e.target.closest('.card-container').id;
-                    editId = id;
-                    try {
-                        const docRef = doc(db, `/artifacts/${appId}/users/${currentUserId}/medicines`, id);
-                        const docSnap = await getDoc(docRef);
-                        if (docSnap.exists()) {
-                            const data = docSnap.data();
-                            medicineNameInput.value = data.name;
-                            medicineTimesInput.value = data.times.join(', ');
-                            startDateInput.value = data.startDate;
-                            endDateInput.value = data.endDate;
-                            medicineTypeInput.value = data.type;
-                            modalTitle.textContent = translations[currentLanguage].modalTitleEdit;
-                            saveButton.textContent = translations[currentLanguage].buttonUpdate;
-                            addModal.classList.remove('hidden');
-                            addModal.classList.add('open');
-                        }
-                    } catch (e) {
-                        showCustomModal(`${translations[currentLanguage].errorDataLoad} ${e.message}`);
-                    }
-                });
-            });
-
-            document.querySelectorAll('.delete-button').forEach(button => {
-                button.addEventListener('click', async (e) => {
-                    const id = e.target.closest('.card-container').id;
-                    showCustomModal(translations[currentLanguage].deleteConfirm, true);
-                    const handleConfirm = async (confirm) => {
-                        closeCustomModal();
-                        if (confirm) {
-                            try {
-                                await deleteDoc(doc(db, `/artifacts/${appId}/users/${currentUserId}/medicines`, id));
-                                showCustomModal('Podsjetnik uspješno obrisan.');
-                            } catch (e) {
-                                showCustomModal(`${translations[currentLanguage].errorDelete} ${e.message}`);
-                            }
-                        }
-                    };
-                    customModalOk.addEventListener('click', () => handleConfirm(true), { once: true });
-                    customModalCancel.addEventListener('click', () => handleConfirm(false), { once: true });
-                });
-            });
-        }
-
-        // Tamni mod
-        darkModeToggle.addEventListener('click', () => {
-            document.body.classList.toggle('dark');
-            if (document.body.classList.contains('dark')) {
-                localStorage.setItem('theme', 'dark');
-            } else {
-                localStorage.setItem('theme', 'light');
-            }
-        });
-
-        // Inicijalna provjera teme
-        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            document.body.classList.add('dark');
-        } else {
-            document.body.classList.remove('dark');
+            document.documentElement.classList.remove('dark');
+            darkIcon.classList.add('hidden');
+            lightIcon.classList.remove('hidden');
         }
 
     </script>

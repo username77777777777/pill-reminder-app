@@ -1,4 +1,5 @@
 // AŽURIRAJ OVE PODATKE SVOJIM VLASTITIM PODACIMA!
+
 export const firebaseConfig = {
     apiKey: "AIzaSyADkyzGFHIV9xm5bIFILgJFNlDqE-U71s8",
     authDomain: "parr-7f5f5.firebaseapp.com",
